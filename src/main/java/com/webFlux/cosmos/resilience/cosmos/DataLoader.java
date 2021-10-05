@@ -23,7 +23,7 @@ public class DataLoader {
     public DataLoader(BookRepository bookRepository) {
         this.bookRepository = bookRepository;
     }
-    //@PostConstruct
+    @PostConstruct
     public void loadBookss() {
         List<Book> books = new ArrayList<Book>();
         books.add(new Book("1", "Databases", "99847", "Seven Databases in Seven Weeks", "Luc Perkins", "A Guide to Modern Databases and the NoSQL Movement", new BigDecimal(47.00), new BigDecimal(43.00), "https://mtchouimages.blob.core.windows.net/books/SevenDatabasesInSevenWeeks.jpg"));

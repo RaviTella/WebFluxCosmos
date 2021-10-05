@@ -3,6 +3,7 @@ package com.webFlux.cosmos.resilience.controller;
 import com.azure.cosmos.CosmosException;
 import com.webFlux.cosmos.resilience.model.Book;
 import com.webFlux.cosmos.resilience.model.BookRepository;
+import com.webFlux.cosmos.resilience.util.RetryConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,9 +30,11 @@ public class BookController {
     Mono<Book> bookByIDAndCategory(@PathVariable String category, @PathVariable String id) {
         return bookRepository
                 .finByIdAndCategory(id, category)
-                .retryWhen(requestTimeOutRetryConfig())
-                .retryWhen(serviceUnavailableRetryConfig())
-                .retryWhen(operationFailedRetryConfig())
+                .timeout(Duration.ofMillis(200))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
                 .doOnError(error -> logger.info("Error encountered ", error))
                 .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 404, error -> new NotFoundException())
                 .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() != 404, error -> new ServiceException());
@@ -41,9 +44,11 @@ public class BookController {
     Flux<Book> bookByCategory(@PathVariable String category) {
         return bookRepository
                 .findByCategory(category)
-                .retryWhen(requestTimeOutRetryConfig())
-                .retryWhen(serviceUnavailableRetryConfig())
-                .retryWhen(operationFailedRetryConfig())
+                .timeout(Duration.ofMillis(300))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
                 .doOnError(error -> logger.info("Error encountered ", error))
                 .onErrorMap(error -> new ServiceException());
     }
@@ -52,20 +57,25 @@ public class BookController {
     Flux<Book> bookByIsbn(@PathVariable String isbn) {
         return bookRepository
                 .findByIsbn(isbn)
-                .retryWhen(requestTimeOutRetryConfig())
-                .retryWhen(serviceUnavailableRetryConfig())
-                .retryWhen(operationFailedRetryConfig())
+                .timeout(Duration.ofMillis(500))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
                 .doOnError(error -> logger.info("Error encountered", error))
-                .onErrorMap(error -> new ServiceException());
+                .onErrorMap(error -> new ServiceException())
+                .log();
     }
 
     @RequestMapping(value = "books", method = RequestMethod.GET)
     Flux<Book> books() {
         return bookRepository
                 .findAll()
-                .retryWhen(requestTimeOutRetryConfig())
-                .retryWhen(serviceUnavailableRetryConfig())
-                .retryWhen(operationFailedRetryConfig())
+                .timeout(Duration.ofMillis(500))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
                 .doOnError(error -> logger.info("Error encountered", error))
                 .onErrorMap(error -> new ServiceException());
     }
@@ -75,60 +85,18 @@ public class BookController {
     Mono<Book> createBook(@RequestBody Book book) {
         return bookRepository
                 .create(book)
-                .retryWhen(tooManyConcurrentWritesRetryConfig())
-                .retryWhen(requestTimeOutRetryConfig())
-                .retryWhen(serviceUnavailableRetryConfig())
-                .retryWhen(operationFailedRetryConfig())
+                .timeout(Duration.ofMillis(100))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger))
+                .retryWhen(RetryConfig.tooManyConcurrentWritesRetryConfig(logger))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
                 .doOnError(error -> logger.info("Error encountered", error))
                 .onErrorReturn(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 409, book)
                 .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() != 409, error -> new ServiceException());
     }
 
 
-    private static Retry operationFailedRetryConfig() {
-        return Retry
-                .max(3)
-                .filter(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 500)
-                .doBeforeRetry(retrySignal -> logger.info("{} re-try attempt after the error {} ", retrySignal.totalRetries() + 1, retrySignal
-                        .failure()
-                        .toString()));
-    }
-
-    private static Retry serviceUnavailableRetryConfig() {
-        return Retry
-                .max(3)
-                .filter(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 503)
-                .doBeforeRetry(retrySignal -> logger.info("{} re-try attempt after the error {} ", retrySignal.totalRetries() + 1, retrySignal
-                        .failure()
-                        .toString()));
-    }
-
-    private static Retry requestTimeOutRetryConfig() {
-        return Retry
-                .max(3)
-                .filter(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 408)
-                .doBeforeRetry(retrySignal -> logger.info("{} re-try attempt after the error {} ", retrySignal.totalRetries() + 1, retrySignal
-                        .failure()
-                        .toString()));
-    }
-
-    private static Retry tooManyConcurrentWritesRetryConfig() {
-        return Retry
-                .max(3)
-                .filter(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 449)
-                .doBeforeRetry(retrySignal -> logger.info("{} re-try attempt after the error {} ", retrySignal.totalRetries() + 1, retrySignal
-                        .failure()
-                        .toString()));
-    }
-
-    private static Retry failFastRetryConfig() {
-        return Retry
-                .max(3)
-                .filter(error -> error instanceof TimeoutException)
-                .doBeforeRetry(retrySignal -> logger.info("{} re-try attempt after the error {} ", retrySignal.totalRetries() + 1, retrySignal
-                        .failure()
-                        .toString()));
-    }
 
 
 }
