@@ -31,10 +31,10 @@ public class BookController {
         return bookRepository
                 .finByIdAndCategory(id, category)
                 .timeout(Duration.ofMillis(200))
-                .retryWhen(RetryConfig.failFastRetryConfig(logger))
-                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
-                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
-                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger,3))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger,3))
                 .doOnError(error -> logger.info("Error encountered ", error))
                 .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 404, error -> new NotFoundException())
                 .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() != 404, error -> new ServiceException());
@@ -45,10 +45,10 @@ public class BookController {
         return bookRepository
                 .findByCategory(category)
                 .timeout(Duration.ofMillis(300))
-                .retryWhen(RetryConfig.failFastRetryConfig(logger))
-                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
-                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
-                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger,3))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger,3))
                 .doOnError(error -> logger.info("Error encountered ", error))
                 .onErrorMap(error -> new ServiceException());
     }
@@ -58,13 +58,12 @@ public class BookController {
         return bookRepository
                 .findByIsbn(isbn)
                 .timeout(Duration.ofMillis(500))
-                .retryWhen(RetryConfig.failFastRetryConfig(logger))
-                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
-                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
-                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger,3))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger,3))
                 .doOnError(error -> logger.info("Error encountered", error))
-                .onErrorMap(error -> new ServiceException())
-                .log();
+                .onErrorMap(error -> new ServiceException());
     }
 
     @RequestMapping(value = "books", method = RequestMethod.GET)
@@ -72,10 +71,10 @@ public class BookController {
         return bookRepository
                 .findAll()
                 .timeout(Duration.ofMillis(500))
-                .retryWhen(RetryConfig.failFastRetryConfig(logger))
-                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
-                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
-                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger,3))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger,3))
                 .doOnError(error -> logger.info("Error encountered", error))
                 .onErrorMap(error -> new ServiceException());
     }
@@ -86,11 +85,11 @@ public class BookController {
         return bookRepository
                 .create(book)
                 .timeout(Duration.ofMillis(100))
-                .retryWhen(RetryConfig.failFastRetryConfig(logger))
-                .retryWhen(RetryConfig.tooManyConcurrentWritesRetryConfig(logger))
-                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger))
-                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger))
-                .retryWhen(RetryConfig.operationFailedRetryConfig(logger))
+                .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
+                .retryWhen(RetryConfig.tooManyConcurrentWritesRetryConfig(logger,3))
+                .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
+                .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger,3))
+                .retryWhen(RetryConfig.operationFailedRetryConfig(logger,3))
                 .doOnError(error -> logger.info("Error encountered", error))
                 .onErrorReturn(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 409, book)
                 .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() != 409, error -> new ServiceException());
