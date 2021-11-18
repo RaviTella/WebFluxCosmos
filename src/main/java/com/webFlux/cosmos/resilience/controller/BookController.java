@@ -37,14 +37,15 @@ public class BookController {
                 .retryWhen(RetryConfig.operationFailedRetryConfig(logger,3))
                 .doOnError(error -> logger.info("Error encountered ", error))
                 .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() == 404, error -> new NotFoundException())
-                .onErrorMap(error -> error instanceof CosmosException && ((CosmosException) error).getStatusCode() != 404, error -> new ServiceException());
+                .onErrorMap(error -> new ServiceException());
     }
 
     @RequestMapping(value = "books/category/{category}", method = RequestMethod.GET)
     Flux<Book> bookByCategory(@PathVariable String category) {
         return bookRepository
                 .findByCategory(category)
-                .timeout(Duration.ofMillis(300))
+                //.readAllItems(category)
+                .timeout(Duration.ofMillis(3000))
                 .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
                 .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
                 .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger,3))
@@ -57,7 +58,7 @@ public class BookController {
     Flux<Book> bookByIsbn(@PathVariable String isbn) {
         return bookRepository
                 .findByIsbn(isbn)
-                .timeout(Duration.ofMillis(500))
+                .timeout(Duration.ofMillis(5000))
                 .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
                 .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
                 .retryWhen(RetryConfig.serviceUnavailableRetryConfig(logger,3))

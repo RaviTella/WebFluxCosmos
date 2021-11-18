@@ -1,5 +1,6 @@
 package com.webFlux.cosmos.resilience.cosmos;
 
+import com.azure.core.http.ProxyOptions;
 import com.azure.cosmos.*;
 import com.azure.cosmos.models.CosmosContainerProperties;
 import com.azure.cosmos.models.ThroughputProperties;
@@ -13,6 +14,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.math.BigDecimal;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,6 +49,7 @@ public class CosmosDB {
         buildAndGetClient()
                 .createDatabaseIfNotExists(databaseName)
                 .flatMap(databaseResponse -> {
+
                     database = client.getDatabase(databaseResponse
                             .getProperties()
                             .getId());
@@ -74,7 +77,7 @@ public class CosmosDB {
                     .userAgentSuffix("WebFluxCosmos")
                     .preferredRegions(locations)
                     .consistencyLevel(ConsistencyLevel.SESSION)
-                    .directMode(directConnectionConfig)
+                    .directMode()
                     .buildAsyncClient();
             return client;
         }

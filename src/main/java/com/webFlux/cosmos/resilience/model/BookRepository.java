@@ -2,7 +2,6 @@ package com.webFlux.cosmos.resilience.model;
 
 import com.azure.cosmos.models.*;
 import com.webFlux.cosmos.resilience.cosmos.CosmosDB;
-import com.webFlux.cosmos.resilience.util.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,8 +28,9 @@ public class BookRepository {
         CosmosItemRequestOptions cosmosItemRequestOptions = new CosmosItemRequestOptions();
         cosmosItemRequestOptions.setContentResponseOnWriteEnabled(true);
         StringBuilder diagnosticLog = new StringBuilder();
-        Timer timer = new Timer();
+        StopWatch stopWatch = new StopWatch();
         long acceptableLatencyMS = 1300;
+        stopWatch.start();
         return cosmosDB
                 .getContainer()
                 .upsertItem(book, new PartitionKey(book.getCategory()), cosmosItemRequestOptions)
@@ -40,17 +40,14 @@ public class BookRepository {
                             .toString());
                     return cosmosItemResponse.getItem();
                 })
-                .doOnSubscribe(s -> {
-                    timer.start();
-                })
                 .doOnTerminate(() -> {
-                    timer.stop();
-                    if (timer.getTotalTimeMillis() > acceptableLatencyMS) {
+                    stopWatch.stop();
+                    if (stopWatch.getTotalTimeMillis() > acceptableLatencyMS) {
                         logger.info("Logging detailed diagnostics as the acceptable latency threshold of {} ms has be breached. Request Latency was {} ms. " +
-                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, timer.getTotalTimeMillis(), diagnosticLog);
+                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, stopWatch.getTotalTimeMillis(), diagnosticLog);
                     } else {
                         logger.info("Request Latency was {} ms and acceptable latency threshold was {} ms ",
-                                timer.getTotalTimeMillis(), acceptableLatencyMS);
+                                stopWatch.getTotalTimeMillis(), acceptableLatencyMS);
                     }
                 });
     }
@@ -58,8 +55,9 @@ public class BookRepository {
     public Mono<Book> finByIdAndCategory(String id, String category) {
         CosmosItemRequestOptions cosmosItemRequestOptions = new CosmosItemRequestOptions();
         StringBuilder diagnosticLog = new StringBuilder();
-        Timer timer = new Timer();
-        long acceptableLatencyMS = 100;
+        StopWatch stopWatch = new StopWatch();
+        long acceptableLatencyMS = 75;
+        stopWatch.start();
         return cosmosDB
                 .getContainer()
                 .readItem(id, new PartitionKey(category), cosmosItemRequestOptions, Book.class)
@@ -69,17 +67,14 @@ public class BookRepository {
                             .toString());
                     return cosmosItemResponse.getItem();
                 })
-                .doOnSubscribe(s -> {
-                    timer.start();
-                })
                 .doOnTerminate(() -> {
-                    timer.stop();
-                    if (timer.getTotalTimeMillis() > acceptableLatencyMS) {
+                    stopWatch.stop();
+                    if (stopWatch.getTotalTimeMillis() > acceptableLatencyMS) {
                         logger.info("Logging detailed diagnostics as the acceptable latency threshold of {} ms has be breached. Request Latency was {} ms. " +
-                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, timer.getTotalTimeMillis(), diagnosticLog);
+                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, stopWatch.getTotalTimeMillis(), diagnosticLog);
                     } else {
                         logger.info("Request Latency was {} ms and acceptable latency threshold was {} ms ",
-                                timer.getTotalTimeMillis(), acceptableLatencyMS);
+                                stopWatch.getTotalTimeMillis(), acceptableLatencyMS);
                     }
 
                 });
@@ -88,13 +83,14 @@ public class BookRepository {
     public Flux<Book> findByCategory(String category) {
         CosmosQueryRequestOptions cosmosQueryRequestOptions = new CosmosQueryRequestOptions();
         cosmosQueryRequestOptions.setPartitionKey(new PartitionKey(category));
-        String query = "SELECT * FROM o WHERE o.category =  'Databases'";
+        String query = "SELECT * FROM o WHERE o.category = @category";
         SqlParameter parameter = new SqlParameter("@category", category);
         List<SqlParameter> sqlParameters = new ArrayList<>();
         sqlParameters.add(parameter);
         SqlQuerySpec querySpec = new SqlQuerySpec(query, sqlParameters);
         StringBuilder diagnosticLog = new StringBuilder();
-        Timer timer = new Timer();
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         long acceptableLatencyMS = 100;
         return cosmosDB
                 .getContainer()
@@ -102,17 +98,14 @@ public class BookRepository {
                 .handle(feedResponse -> diagnosticLog.append(feedResponse
                         .getCosmosDiagnostics()
                         .toString()))
-                .doOnSubscribe(s -> {
-                    timer.start();
-                })
                 .doOnComplete(() -> {
-                    timer.stop();
-                    if (timer.getTotalTimeMillis() > acceptableLatencyMS) {
+                    stopWatch.stop();
+                    if (stopWatch.getTotalTimeMillis() > acceptableLatencyMS) {
                         logger.info("Logging detailed diagnostics as the acceptable latency threshold of {} ms has be breached. Request Latency was {} ms. " +
-                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, timer.getTotalTimeMillis(), diagnosticLog);
+                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, stopWatch.getTotalTimeMillis(), diagnosticLog);
                     } else {
                         logger.info("Request Latency was {} ms and acceptable latency threshold was {} ms ",
-                                timer.getTotalTimeMillis(), acceptableLatencyMS);
+                                stopWatch.getTotalTimeMillis(), acceptableLatencyMS);
                     }
 
                 });
@@ -128,24 +121,22 @@ public class BookRepository {
         SqlQuerySpec querySpec = new SqlQuerySpec(query, sqlParameters);
         StringBuilder diagnosticLog = new StringBuilder();
         long acceptableLatencyMS = 300;
-        Timer timer = new Timer();
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         return cosmosDB
                 .getContainer()
                 .queryItems(querySpec, cosmosQueryRequestOptions, Book.class)
                 .handle(feedResponse -> diagnosticLog.append(feedResponse
                         .getCosmosDiagnostics()
                         .toString()))
-                .doOnSubscribe(s -> {
-                    timer.start();
-                })
                 .doOnComplete(() -> {
-                    timer.stop();
-                    if (timer.getTotalTimeMillis() > acceptableLatencyMS) {
+                    stopWatch.stop();
+                    if (stopWatch.getTotalTimeMillis() > acceptableLatencyMS) {
                         logger.info("Logging detailed diagnostics as the acceptable latency threshold of {} ms has be breached. Request Latency was {} ms. " +
-                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, timer.getTotalTimeMillis(), diagnosticLog);
+                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, stopWatch.getTotalTimeMillis(), diagnosticLog);
                     } else {
                         logger.info("Request Latency was {} ms and acceptable latency threshold was {} ms ",
-                                timer.getTotalTimeMillis(), acceptableLatencyMS);
+                                stopWatch.getTotalTimeMillis(), acceptableLatencyMS);
                     }
                 });
     }
@@ -156,24 +147,22 @@ public class BookRepository {
         String query = "SELECT * FROM o";
         StringBuilder diagnosticLog = new StringBuilder();
         long acceptableLatencyMS = 500;
-        Timer timer = new Timer();
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
         return cosmosDB
                 .getContainer()
                 .queryItems(query, cosmosQueryRequestOptions, Book.class)
                 .handle(feedResponse -> diagnosticLog.append(feedResponse
                         .getCosmosDiagnostics()
                         .toString()))
-                .doOnSubscribe(s -> {
-                    timer.start();
-                })
                 .doOnComplete(() -> {
-                    timer.stop();
-                    if (timer.getTotalTimeMillis() > acceptableLatencyMS) {
+                    stopWatch.stop();
+                    if (stopWatch.getTotalTimeMillis() > acceptableLatencyMS) {
                         logger.info("Logging detailed diagnostics as the acceptable latency threshold of {} ms has be breached. Request Latency was {} ms. " +
-                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, timer.getTotalTimeMillis(), diagnosticLog);
+                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, stopWatch.getTotalTimeMillis(), diagnosticLog);
                     } else {
                         logger.info("Request Latency was {} ms and acceptable latency threshold was {} ms ",
-                                timer.getTotalTimeMillis(), acceptableLatencyMS);
+                                stopWatch.getTotalTimeMillis(), acceptableLatencyMS);
                     }
                 });
     }
@@ -183,8 +172,9 @@ public class BookRepository {
         CosmosItemRequestOptions cosmosItemRequestOptions = new CosmosItemRequestOptions();
         cosmosItemRequestOptions.setContentResponseOnWriteEnabled(true);
         StringBuilder diagnosticLog = new StringBuilder();
-        Timer timer = new Timer();
+        StopWatch stopWatch = new StopWatch();
         long acceptableLatencyMS = 300;
+        stopWatch.start();
         return cosmosDB
                 .getContainer()
                 .createItem(book, new PartitionKey(book.getCategory()), cosmosItemRequestOptions)
@@ -194,17 +184,14 @@ public class BookRepository {
                             .toString());
                     return cosmosItemResponse.getItem();
                 })
-                .doOnSubscribe(s -> {
-                    timer.start();
-                })
                 .doOnTerminate(() -> {
-                    timer.stop();
-                    if (timer.getTotalTimeMillis() > acceptableLatencyMS) {
+                    stopWatch.stop();
+                    if (stopWatch.getTotalTimeMillis() > acceptableLatencyMS) {
                         logger.info("Logging detailed diagnostics as the acceptable latency threshold of {} ms has be breached. Request Latency was {} ms. " +
-                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, timer.getTotalTimeMillis(), diagnosticLog);
+                                "Following are the detailed diagnostics:  {}", acceptableLatencyMS, stopWatch.getTotalTimeMillis(), diagnosticLog);
                     } else {
                         logger.info("Request Latency was {} ms and acceptable latency threshold was {} ms ",
-                                timer.getTotalTimeMillis(), acceptableLatencyMS);
+                                stopWatch.getTotalTimeMillis(), acceptableLatencyMS);
                     }
 
                 });
