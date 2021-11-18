@@ -44,7 +44,6 @@ public class BookController {
     Flux<Book> bookByCategory(@PathVariable String category) {
         return bookRepository
                 .findByCategory(category)
-                //.readAllItems(category)
                 .timeout(Duration.ofMillis(3000))
                 .retryWhen(RetryConfig.failFastRetryConfig(logger,3))
                 .retryWhen(RetryConfig.requestTimeOutRetryConfig(logger,3))
